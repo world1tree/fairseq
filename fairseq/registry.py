@@ -15,14 +15,19 @@ REGISTRIES = {}
 
 
 def setup_registry(registry_name: str, base_class=None, default=None, required=False):
+    # 该函数用于**生成装饰器**, 装饰器用来在不同文件夹下的文件中进行register具体类
+    # 生成的装饰器只能修饰继承base_class的类
+    # 各个文件夹下面的__init__.py文件需要调用该函数
+    # 为什么register_task不通过这种方式去做?
     assert registry_name.startswith("--")
+    # registry_name类似命令行参数，如--criterion
     registry_name = registry_name[2:].replace("-", "_")
 
-    REGISTRY = {}
+    REGISTRY = {}               # 与register_task类似, 存储name: cls
     REGISTRY_CLASS_NAMES = set()
     DATACLASS_REGISTRY = {}
 
-    # maintain a registry of all registries
+    # maintain a registry of all registries(task除外)
     if registry_name in REGISTRIES:
         return  # registry already exists
     REGISTRIES[registry_name] = {
@@ -60,7 +65,10 @@ def setup_registry(registry_name: str, base_class=None, default=None, required=F
 
         return builder(cfg, *extra_args, **extra_kwargs)
 
+    # 第一层是装饰器需要的参数
     def register_x(name, dataclass=None):
+        # 第二层是装饰器修饰的函数或类
+        # 由于不需要知道类的参数，所以不需要第三层
         def register_x_cls(cls):
             if name in REGISTRY:
                 raise ValueError(
@@ -93,6 +101,7 @@ def setup_registry(registry_name: str, base_class=None, default=None, required=F
 
             REGISTRY[name] = cls
 
+            # 注意这里没有实例化！！！
             return cls
 
         return register_x_cls

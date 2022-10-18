@@ -465,9 +465,11 @@ def import_user_module(args):
     module_path = getattr(args, "user_dir", None)
     if module_path is not None:
         module_path = os.path.abspath(args.user_dir)
+        # 为了支持module_A.py, module_dir/module_B.py
         if not os.path.exists(module_path) and not os.path.isfile(
             os.path.dirname(module_path)
         ):
+            # 尝试在fairseq或者fairseq的上层目录寻找module
             fairseq_rel_path = os.path.join(os.path.dirname(__file__), args.user_dir)
             if os.path.exists(fairseq_rel_path):
                 module_path = fairseq_rel_path
@@ -481,6 +483,7 @@ def import_user_module(args):
                     raise FileNotFoundError(module_path)
 
         # ensure that user modules are only imported once
+        # python函数是一个对象
         import_user_module.memo = getattr(import_user_module, "memo", set())
         if module_path not in import_user_module.memo:
             import_user_module.memo.add(module_path)

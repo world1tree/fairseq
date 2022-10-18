@@ -16,9 +16,9 @@ from .fairseq_task import FairseqTask, LegacyFairseqTask  # noqa
 
 
 # register dataclass
-TASK_DATACLASS_REGISTRY = {}
-TASK_REGISTRY = {}
-TASK_CLASS_NAMES = set()
+TASK_DATACLASS_REGISTRY = {} # key: task_name, value: task_dataclass(继承FairseqDataClass)
+TASK_REGISTRY = {}    # key: task_name, value: cls
+TASK_CLASS_NAMES = set() # task_class_name
 
 
 def setup_task(cfg: FairseqDataclass, **kwargs):
@@ -47,6 +47,9 @@ def setup_task(cfg: FairseqDataclass, **kwargs):
 
 
 def register_task(name, dataclass=None):
+    # 这个装饰器用来定义新的task
+    # task必须继承FairseqTask, FairSeqTask应该是fairseq的核心
+    # 注意!!!装饰器在定义处立即执行!!!
     """
     New tasks can be added to fairseq with the
     :func:`~fairseq.tasks.register_task` function decorator.
@@ -67,6 +70,7 @@ def register_task(name, dataclass=None):
     """
 
     def register_task_cls(cls):
+        # 装饰类
         if name in TASK_REGISTRY:
             raise ValueError("Cannot register duplicate task ({})".format(name))
         if not issubclass(cls, FairseqTask):
@@ -87,12 +91,14 @@ def register_task(name, dataclass=None):
                 "Dataclass {} must extend FairseqDataclass".format(dataclass)
             )
 
+        # 可以引入一些额外的配置
         cls.__dataclass = dataclass
         if dataclass is not None:
             TASK_DATACLASS_REGISTRY[name] = dataclass
 
             cs = ConfigStore.instance()
             node = dataclass()
+            # 这里指定了配置对应的task name
             node._name = name
             cs.store(name=name, group="task", node=node, provider="fairseq")
 
@@ -111,14 +117,18 @@ def import_tasks(tasks_dir, namespace):
         if (
             not file.startswith("_")
             and not file.startswith(".")
-            and (file.endswith(".py") or os.path.isdir(path))
+            and (file.endswith(".py") or os.path.isdir(path)) # 如果path是文件夹怎么办?
         ):
             task_name = file[: file.find(".py")] if file.endswith(".py") else file
+            # task_name必须唯一
+            # 在import_module的过程中，TASK_REGISTRY会被填充
+            # key是task_name, value是不同task的具体实现类
             importlib.import_module(namespace + "." + task_name)
 
             # expose `task_parser` for sphinx
             if task_name in TASK_REGISTRY:
-                parser = argparse.ArgumentParser(add_help=False)
+                # 下面是专门属于某个task的配置参数
+                parser = argparse.ArgumentParser(add_help=False) # 此处task不显示help
                 group_task = parser.add_argument_group("Task name")
                 # fmt: off
                 group_task.add_argument('--task', metavar=task_name,
@@ -127,7 +137,11 @@ def import_tasks(tasks_dir, namespace):
                 group_args = parser.add_argument_group(
                     "Additional command-line arguments"
                 )
+                # 不同task的具体实现类继承了FairseqTask, 而FairSeqTask有add_args类方法可以
+                # 为传入的parser增加额外的参数, 具体实现类需要有__dataclass属性, _dataclass可以在
+                # register_task中传入，add_args会把dataclass中的所有配置应用到group_args上
                 TASK_REGISTRY[task_name].add_args(group_args)
+                # 把该task的配置参数加入全局变量
                 globals()[task_name + "_parser"] = parser
 
 

@@ -8,6 +8,7 @@ import typing as tp
 
 
 def _safe_readline(fd) -> str:
+    # 这个函数应该可以确保读取的是一整行
     pos = fd.tell()
     while True:
         try:

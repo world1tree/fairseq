@@ -80,6 +80,10 @@ def aggregate(name: Optional[str] = None, new_root: bool = False):
         agg = MetersDict()
     else:
         assert name != "default"
+        # 关于返回值
+        # 如果name存在，那么返回值为_aggregators[name]
+        # 如果name不存在，那么返回值为MetersDict()
+        # 所以会复用已有的agg
         agg = _aggregators.setdefault(name, MetersDict())
 
     if new_root:

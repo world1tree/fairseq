@@ -165,8 +165,13 @@ def tiny_architecture(args):
     return base_architecture(args)
 
 
+# 模型名，架构名
 @register_model_architecture("transformer", "transformer")
 def base_architecture(args):
+    # 这些参数到底是干啥的? args类型是什么？
+    # args是parse.parse_args()的返回值，这里是对最终得到的参数进行后处理
+    # 如果定义了某个参数，那么不会覆盖
+    # 如果没有定义某个参数，那么会有默认值(理论上可以把模型参数放在这里，这样就不用从cli传参了)
     args.encoder_embed_path = getattr(args, "encoder_embed_path", None)
     args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 512)
     args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 2048)

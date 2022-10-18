@@ -28,6 +28,7 @@ from fairseq.dataclass.constants import (
 class FairseqDataclass:
     """fairseq base dataclass that supported fetching attributes and metas"""
 
+    #  Optional[str]等价于Union[X, None]
     _name: Optional[str] = None
 
     @staticmethod
@@ -35,6 +36,8 @@ class FairseqDataclass:
         return None
 
     def _get_all_attributes(self) -> List[str]:
+        # __dataclass_fields__是一个{xx: Field(...)}, xx是该类定义的变量
+        # 所以，该方法返回['_name']
         return [k for k in self.__dataclass_fields__.keys()]
 
     def _get_meta(
@@ -43,6 +46,7 @@ class FairseqDataclass:
         return self.__dataclass_fields__[attribute_name].metadata.get(meta, default)
 
     def _get_name(self, attribute_name: str) -> str:
+        # 感觉name和attribute_name是相同的???
         return self.__dataclass_fields__[attribute_name].name
 
     def _get_default(self, attribute_name: str) -> Any:
@@ -65,6 +69,7 @@ class FairseqDataclass:
         return f.default
 
     def _get_type(self, attribute_name: str) -> Any:
+        # 这里的类型是根据自己标记自动生成的, 返回值不是字符串
         return self.__dataclass_fields__[attribute_name].type
 
     def _get_help(self, attribute_name: str) -> Any:

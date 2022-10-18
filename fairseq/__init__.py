@@ -19,7 +19,7 @@ __all__ = ["pdb"]
 # backwards compatibility to support `from fairseq.X import Y`
 from fairseq.distributed import utils as distributed_utils
 from fairseq.logging import meters, metrics, progress_bar  # noqa
-
+# 关于sys.modules查阅https://www.cnblogs.com/zhaojingyu/p/9069076.html
 sys.modules["fairseq.distributed_utils"] = distributed_utils
 sys.modules["fairseq.meters"] = meters
 sys.modules["fairseq.metrics"] = metrics

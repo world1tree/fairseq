@@ -182,6 +182,7 @@ def register_model_architecture(model_name, arch_name):
     """
 
     def register_model_arch_fn(fn):
+        # 在被修饰对象所在函数内，代码会被自动执行
         if model_name not in MODEL_REGISTRY:
             raise ValueError(
                 "Cannot register model architecture for unknown model type ({})".format(
@@ -196,9 +197,13 @@ def register_model_architecture(model_name, arch_name):
             raise ValueError(
                 "Model architecture must be callable ({})".format(arch_name)
             )
+        # 架构和模型用的是同一个类
         ARCH_MODEL_REGISTRY[arch_name] = MODEL_REGISTRY[model_name]
         ARCH_MODEL_NAME_REGISTRY[arch_name] = model_name
+        # setdefault应该可以取代defaultdict
+        # 也就是同一个model可以对应多个不同的architecture
         ARCH_MODEL_INV_REGISTRY.setdefault(model_name, []).append(arch_name)
+        # 把架构函数放到ARCH_CONFIG_REGISTRY中
         ARCH_CONFIG_REGISTRY[arch_name] = fn
         return fn
 

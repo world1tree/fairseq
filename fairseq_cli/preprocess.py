@@ -6,7 +6,6 @@
 """
 Data pre-processing: build vocabularies and binarize training data.
 """
-
 import logging
 import os
 import shutil
@@ -109,7 +108,7 @@ def _make_binary_dataset(
     logger.info("[{}] Dictionary: {} types".format(lang, len(vocab)))
 
     binarizer = VocabularyDatasetBinarizer(
-        vocab,
+        vocab,              # encode_line
         append_eos=True,
     )
 
@@ -295,9 +294,11 @@ def main(args):
 
     target = not args.only_source
 
+    # 没有给字典文件并且字典文件存在(相当于之前已经生成了字典文件)
     if not args.srcdict and os.path.exists(_dict_path(args.source_lang, args.destdir)):
         raise FileExistsError(_dict_path(args.source_lang, args.destdir))
 
+    # 同上
     if (
         target
         and not args.tgtdict
@@ -369,6 +370,8 @@ def main(args):
     if args.dict_only:
         return
 
+
+    # 创建.bin(根据vocab数值化corpus后的bytes文件)与.idx(根据vocab数值化corpus后每一条的size, bytes)文件
     _make_all(args.source_lang, src_dict, args)
     if target:
         _make_all(args.target_lang, tgt_dict, args)
@@ -379,6 +382,7 @@ def main(args):
 
     logger.info("Wrote preprocessed data to {}".format(args.destdir))
 
+    # 这句没看
     if args.alignfile:
         _align_files(args, src_dict=src_dict, tgt_dict=tgt_dict)
 

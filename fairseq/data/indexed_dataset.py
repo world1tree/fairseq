@@ -564,9 +564,10 @@ class MMapIndexedDatasetBuilder:
         self._sizes = []
 
     def add_item(self, tensor):
+        # 转成numpy, 再然后转成bytes写文件
         np_array = np.array(tensor.numpy(), dtype=self._dtype)
         self._data_file.write(np_array.tobytes(order="C"))
-        self._sizes.append(np_array.size)
+        self._sizes.append(np_array.size) # token个数(可能包括eos)
 
     def merge_file_(self, another_file):
         # Concatenate index

@@ -16,6 +16,7 @@ class StrEnumMeta(EnumMeta):
 
 
 class StrEnum(Enum, metaclass=StrEnumMeta):
+    # 把常规枚举改为字符串枚举?
     def __str__(self):
         return self.value
 

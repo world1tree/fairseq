@@ -27,9 +27,11 @@ class BinarizeSummary:
     Keep track of what's going on in the binarizer
     """
 
-    num_seq: int = 0
+    num_seq: int = 0    # 处理了多少个句子
+    # word由于不在vocab中被替换成了unk
+    # {word1: num1, word2: num2, ...}
     replaced: tp.Optional[Counter] = None
-    num_tok: int = 0
+    num_tok: int = 0    # 处理了多少个token
 
     @property
     def num_replaced(self) -> int:
@@ -136,6 +138,7 @@ class FileBinarizer:
                 summ = r.get()
                 final_summary.merge(summ)
 
+        # 之所以单独留下一份，是为了合并其他进程生成的文件
         # do not close the bin file as we need to merge the worker results in
         final_ds, summ = cls._binarize_file_chunk(
             binarizer,
@@ -184,6 +187,7 @@ class FileBinarizer:
         finalize the builder, this is useful if you want to do other things with your bin file
         like appending/merging other files
         """
+        # data_file_path是在参数后加.bin
         bin_file = indexed_dataset.data_file_path(output_prefix)
         ds = indexed_dataset.make_builder(
             bin_file,
@@ -224,7 +228,9 @@ class FileBinarizer:
             vocab_size=vocab_size,
         )
 
+        # index_file_path仅仅是在参数后加.idx
         idx_file = indexed_dataset.index_file_path(output_prefix)
+        # idx_file实际是语料每一行的长度(bytes), .bin文件则是数值化后的corpus(bytes)
         ds.finalize(idx_file)
 
         return summ
@@ -260,6 +266,8 @@ class VocabularyDatasetBinarizer(Binarizer):
             summary.replaced = Counter()
 
         def replaced_consumer(word, idx):
+            # 索引是unk对应的索引，但是单词不是
+            # 可能的原因是某个单词不在词表中，所以使用了unknown的索引
             if idx == self.dict.unk_index and word != self.dict.unk_word:
                 summary.replaced.update([word])
 
@@ -282,7 +290,7 @@ class VocabularyDatasetBinarizer(Binarizer):
             )
 
         summary.num_seq += 1
-        summary.num_tok += len(ids)
+        summary.num_tok += len(ids) # 可能算上了eos
         return ids
 
 

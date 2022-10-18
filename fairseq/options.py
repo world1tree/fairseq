@@ -2,7 +2,6 @@
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
-
 import argparse
 from pathlib import Path
 from typing import Callable, List, Optional, Union
@@ -38,8 +37,11 @@ def get_training_parser(default_task="translation"):
     parser = get_parser("Trainer", default_task)
     add_dataset_args(parser, train=True)
     add_distributed_training_args(parser)
+    # 仅增加--arch
     add_model_args(parser)
+    # 一些通用的optimization选项
     add_optimization_args(parser)
+    # checkpoint设置
     add_checkpoint_args(parser)
     add_ema_args(parser)
     return parser
@@ -125,6 +127,7 @@ def parse_args_and_arch(
     # in order to eagerly import custom tasks, optimizers, architectures, etc.
     usr_parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
     usr_parser.add_argument("--user-dir", default=None)
+    # 如果input_args不为空，那么会忽略命令行参数，转而使用input_args值解析
     usr_args, _ = usr_parser.parse_known_args(input_args)
     utils.import_user_module(usr_args)
 
@@ -138,6 +141,7 @@ def parse_args_and_arch(
     args, _ = parser.parse_known_args(input_args)
 
     # Add model-specific args to parser.
+    # 加载模型配置
     if hasattr(args, "arch"):
         model_specific_group = parser.add_argument_group(
             "Model-specific configuration",
@@ -147,15 +151,18 @@ def parse_args_and_arch(
         )
         if args.arch in ARCH_MODEL_REGISTRY:
             ARCH_MODEL_REGISTRY[args.arch].add_args(model_specific_group)
+        # 即便不写架构，model也是可以的
         elif args.arch in MODEL_REGISTRY:
             MODEL_REGISTRY[args.arch].add_args(model_specific_group)
         else:
             raise RuntimeError()
-
+    # 加载task配置
     if hasattr(args, "task"):
         from fairseq.tasks import TASK_REGISTRY
 
         TASK_REGISTRY[args.task].add_args(parser)
+
+    # 某个optimizer配置
     if getattr(args, "use_bmuf", False):
         # hack to support extra args for block distributed data parallelism
         from fairseq.optim.bmuf import FairseqBMUF
@@ -169,6 +176,7 @@ def parse_args_and_arch(
         choice = getattr(args, registry_name, None)
         if choice is not None:
             cls = REGISTRY["registry"][choice]
+            # 应该就这两种方式可以新增参数
             if hasattr(cls, "add_args"):
                 cls.add_args(parser)
             elif hasattr(cls, "__dataclass"):
@@ -216,6 +224,7 @@ def parse_args_and_arch(
             args.update_epoch_batch_itr = False
 
     # Apply architecture configuration.
+    # 被architecture装饰器修饰的函数在此处被调用
     if hasattr(args, "arch") and args.arch in ARCH_CONFIG_REGISTRY:
         ARCH_CONFIG_REGISTRY[args.arch](args)
 
@@ -228,16 +237,21 @@ def parse_args_and_arch(
 def get_parser(desc, default_task="translation"):
     # Before creating the true parser, we need to import optional user module
     # in order to eagerly import custom tasks, optimizers, architectures, etc.
+    # user_dir里是用户自定义的代码
+    # argparse可以按需要重复调用, 相当于每次都parse传入的命令行参数
     usr_parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
     usr_parser.add_argument("--user-dir", default=None)
+    # parse_known_args: 如果传入多余的参数，不会报错，作为返回值的第二个参数保存
     usr_args, _ = usr_parser.parse_known_args()
     utils.import_user_module(usr_args)
 
     parser = argparse.ArgumentParser(allow_abbrev=False)
+    # 从CommonConfig(dataclass)中生成配置
     gen_parser_from_dataclass(parser, CommonConfig())
 
     from fairseq.registry import REGISTRIES
 
+    # 把所有registry东西加载到命令行参数中
     for registry_name, REGISTRY in REGISTRIES.items():
         parser.add_argument(
             "--" + registry_name.replace("_", "-"),
@@ -262,6 +276,7 @@ def get_parser(desc, default_task="translation"):
 def add_preprocess_args(parser):
     group = parser.add_argument_group("Preprocessing")
     # fmt: off
+    # metavar如果不指定，那么默认是SOURCE-LANG
     group.add_argument("-s", "--source-lang", default=None, metavar="SRC",
                        help="source language")
     group.add_argument("-t", "--target-lang", default=None, metavar="TARGET",
@@ -274,33 +289,43 @@ def add_preprocess_args(parser):
     group.add_argument("--testpref", metavar="FP", default=None,
                        help="comma separated, test file prefixes "
                             "(words missing from train set are replaced with <unk>)")
+    # 这个是干啥的?
     group.add_argument("--align-suffix", metavar="FP", default=None,
                        help="alignment file suffix")
+    # 相当于working_dir
     group.add_argument("--destdir", metavar="DIR", default="data-bin",
                        help="destination dir")
+    # 出现次数过少的单词忽略
     group.add_argument("--thresholdtgt", metavar="N", default=0, type=int,
                        help="map words appearing less than threshold times to unknown")
     group.add_argument("--thresholdsrc", metavar="N", default=0, type=int,
                        help="map words appearing less than threshold times to unknown")
+    # 字典文件tgt
     group.add_argument("--tgtdict", metavar="FP",
                        help="reuse given target dictionary")
+    # 字典文件src, 不指定default, 那么default=None
     group.add_argument("--srcdict", metavar="FP",
                        help="reuse given source dictionary")
     group.add_argument("--nwordstgt", metavar="N", default=-1, type=int,
                        help="number of target words to retain")
     group.add_argument("--nwordssrc", metavar="N", default=-1, type=int,
                        help="number of source words to retain")
+    # 这个又是干啥的?
     group.add_argument("--alignfile", metavar="ALIGN", default=None,
                        help="an alignment file (optional)")
     parser.add_argument('--dataset-impl', metavar='FORMAT', default='mmap',
                         choices=get_available_dataset_impl(),
                         help='output dataset implementation')
+    # tgt和src词表合并
     group.add_argument("--joined-dictionary", action="store_true",
                        help="Generate joined dictionary")
+    # 指定为true,不指定为false
     group.add_argument("--only-source", action="store_true",
                        help="Only process the source language")
+    # 加快计算?
     group.add_argument("--padding-factor", metavar="N", default=8, type=int,
                        help="Pad dictionary size to be multiple of N")
+    # 并行数
     group.add_argument("--workers", metavar="N", default=1, type=int,
                        help="number of parallel workers")
     group.add_argument("--dict-only", action='store_true',
@@ -318,6 +343,7 @@ def add_dataset_args(parser, train=False, gen=False):
 
 def add_distributed_training_args(parser, default_world_size=None):
     group = parser.add_argument_group("distributed_training")
+    # 默认使用所有gpu
     if default_world_size is None:
         default_world_size = max(1, torch.cuda.device_count())
     gen_parser_from_dataclass(
@@ -385,6 +411,8 @@ def add_model_args(parser):
     # 1) model defaults (lowest priority)
     # 2) --arch argument
     # 3) --encoder/decoder-* arguments (highest priority)
+
+    # arch是否是组合encoder/decoder的？
     from fairseq.models import ARCH_MODEL_REGISTRY
     group.add_argument('--arch', '-a', metavar='ARCH',
                        choices=ARCH_MODEL_REGISTRY.keys(),

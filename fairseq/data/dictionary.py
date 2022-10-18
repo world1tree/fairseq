@@ -21,34 +21,42 @@ class Dictionary:
     def __init__(
         self,
         *,  # begin keyword-only arguments
-        bos="<s>",
-        pad="<pad>",
-        eos="</s>",
-        unk="<unk>",
+        bos="<s>", # begin of sentence
+        pad="<pad>", # padding
+        eos="</s>",  # end of sentence
+        unk="<unk>", # unknown
         extra_special_symbols=None,
     ):
         self.bos_word, self.unk_word, self.pad_word, self.eos_word = bos, unk, pad, eos
-        self.symbols = []
-        self.count = []
-        self.indices = {}
+        self.symbols = [] # symbols存储word
+        self.count = []   # count存储word出现的次数, 与symbols是一一对应关系
+        self.indices = {} # key是word, value是int
+        # 0
         self.bos_index = self.add_symbol(bos)
+        # 1
         self.pad_index = self.add_symbol(pad)
+        # 2
         self.eos_index = self.add_symbol(eos)
+        # 3
         self.unk_index = self.add_symbol(unk)
         if extra_special_symbols:
             for s in extra_special_symbols:
                 self.add_symbol(s)
+        # 特殊字符的数量
         self.nspecial = len(self.symbols)
 
     def __eq__(self, other):
+        # 字典可以直接比较
         return self.indices == other.indices
 
     def __getitem__(self, idx):
+        # 根据index取值
         if idx < len(self.symbols):
             return self.symbols[idx]
         return self.unk_word
 
     def get_count(self, idx):
+        # 查看index出现的次数
         return self.count[idx]
 
     def __len__(self):
@@ -56,6 +64,7 @@ class Dictionary:
         return len(self.symbols)
 
     def __contains__(self, sym):
+        # 判断sym是否在词表中
         return sym in self.indices
 
     def index(self, sym):
@@ -137,6 +146,7 @@ class Dictionary:
 
     def update(self, new_dict):
         """Updates counts from new dictionary."""
+        # 单词出现次数加到旧字典中
         for word in new_dict.symbols:
             idx2 = new_dict.indices[word]
             if word in self.indices:
@@ -166,11 +176,13 @@ class Dictionary:
         new_symbols = self.symbols[: self.nspecial]
         new_count = self.count[: self.nspecial]
 
+        # 不需要sorted
         c = Counter(
             dict(
                 sorted(zip(self.symbols[self.nspecial :], self.count[self.nspecial :]))
             )
         )
+        # most_common获取前k个出现次数最多的字符
         for symbol, count in c.most_common(nwords - self.nspecial):
             if count >= threshold:
                 new_indices[symbol] = len(new_symbols)
@@ -193,6 +205,7 @@ class Dictionary:
             i = 0
             while len(self) % padding_factor != 0:
                 symbol = "madeupword{:04d}".format(i)
+                # 没有算数量
                 self.add_symbol(symbol, n=0)
                 i += 1
 
@@ -231,6 +244,7 @@ class Dictionary:
         Loads a pre-existing dictionary from a text file and adds its symbols
         to this instance.
         """
+        # f可以是本地文件, 远程服务器文件(http/https)或者文件句柄
         if isinstance(f, str):
             try:
                 with open(PathManager.get_local_path(f), "r", encoding="utf-8") as fd:
@@ -275,14 +289,16 @@ class Dictionary:
         if isinstance(f, str):
             PathManager.mkdirs(os.path.dirname(f))
             with PathManager.open(f, "w", encoding="utf-8") as fd:
-                return self.save(fd)
+                return self.save(fd) # 如果是字符串 call a->b->a->b结束
         for k, v in kv_iterator:
             print("{} {}".format(k, v), file=f)
 
     def _get_meta(self):
+        # 准备子类覆盖？
         return [], []
 
     def _load_meta(self, lines):
+        # 准备子类覆盖？
         return 0
 
     def save(self, f):
@@ -310,14 +326,20 @@ class Dictionary:
         append_eos=True,
         reverse_order=False,
     ) -> torch.IntTensor:
+        # add_if_not_exist参数始终置为False!!!
+        # 使用词表编码sentence
         words = line_tokenizer(line)
         if reverse_order:
             words = list(reversed(words))
         nwords = len(words)
+        # 没有加入bos!!!
         ids = torch.IntTensor(nwords + 1 if append_eos else nwords)
 
         for i, word in enumerate(words):
             if add_if_not_exist:
+                # add_symbol方法内处理了重复word的情形
+                # 1. 如果word不存在词表中，那么加入
+                # 2. 如果word存在词表中，那么对应的数量会+1, 为什么这里重新编码数据时词表数量要加1
                 idx = self.add_symbol(word)
             else:
                 idx = self.index(word)
@@ -347,10 +369,12 @@ class Dictionary:
     @staticmethod
     def add_file_to_dictionary(filename, dict, tokenize, num_workers):
         def merge_result(counter):
+            # 这里是把所有word都统计了, 最终需要调用finalize
             for w, c in sorted(counter.items()):
                 dict.add_symbol(w, c)
 
         local_file = PathManager.get_local_path(filename)
+        # list, 存储各个部分的offset, 长度为num_workers+1
         offsets = find_offsets(local_file, num_workers)
         if num_workers > 1:
             chunks = zip(offsets, offsets[1:])

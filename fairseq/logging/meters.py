@@ -249,6 +249,7 @@ class StopwatchMeter(Meter):
 
 
 class MetersDict(OrderedDict):
+    # OrderedDict根据key放入的顺序排序(遍历顺序为key放入的顺序)
     """A sorted dictionary of :class:`Meters`.
 
     Meters are sorted according to a priority that is given when the
@@ -260,12 +261,17 @@ class MetersDict(OrderedDict):
         self.priorities = []
 
     def __setitem__(self, key, value):
+        # 设置的value是(priority, value)
         assert key not in self, "MetersDict doesn't support reassignment"
         priority, value = value
+        # 根据优先级排序
         bisect.insort(self.priorities, (priority, len(self.priorities), key))
+        # 进入OrderedDict
         super().__setitem__(key, value)
+        # OrderedDict根据优先级重排元素
+        # 优先级数字大的在前面
         for _, _, key in self.priorities:  # reorder dict to match priorities
-            self.move_to_end(key)
+            self.move_to_end(key)  # 把key移动到末尾
 
     def add_meter(self, key, meter, priority):
         self.__setitem__(key, (priority, meter))
