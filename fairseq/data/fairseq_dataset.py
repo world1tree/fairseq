@@ -33,6 +33,7 @@ class EpochListening:
 
 
 class FairseqDataset(torch.utils.data.Dataset, EpochListening):
+    # 封装了torch内置的数据类
     """A dataset that provides helpers for batching."""
 
     def __getitem__(self, index):

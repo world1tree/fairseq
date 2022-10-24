@@ -59,7 +59,7 @@ class EncDecBaseConfig(FairseqDataclass):
 
 @dataclass
 class DecoderConfig(EncDecBaseConfig):
-    input_dim: int = II("model.decoder.embed_dim")
+    input_dim: int = II("model.decoder.embed_dim") # 默认值通过插值获取
     output_dim: int = field(
         default=II("model.decoder.embed_dim"),
         metadata={
@@ -117,7 +117,7 @@ class TransformerConfig(FairseqDataclass):
         default=DEFAULT_MAX_SOURCE_POSITIONS,
         metadata={"help": "Maximum input length supported by the encoder"},
     )
-    decoder: DecoderConfig = DecoderConfig()
+    decoder: DecoderConfig = DecoderConfig()   # 访问DecoderConfig中的参数必须通过下划线e.g. decoder_layers
     # TODO should really be in the decoder config
     max_target_positions: int = field(
         default=DEFAULT_MAX_TARGET_POSITIONS,
@@ -314,6 +314,7 @@ class TransformerConfig(FairseqDataclass):
                     # if it's not a structure field, it's just a normal field, copy it over
                     seen.add(fld.name)
                     setattr(config, fld.name, safe_getattr(args, fld.name))
+            # 到这里，config就是model专属dc的参数
             # we got all the fields defined in the dataclass, but
             # the argparse namespace might have extra args for two reasons:
             #   - we are in a legacy class so all the args are not declared in the dataclass. Ideally once everyone has defined a dataclass for their model, we won't need this
@@ -325,6 +326,7 @@ class TransformerConfig(FairseqDataclass):
                 if safe_hasattr(args, "__dict__")
                 else {}
             )  # namedtupled doesn't have __dict__ :-/
+            # 这里把args里其他的参数也设置到了config里
             for key, value in args_dict.items():
                 if key not in seen:
                     setattr(config, key, value)

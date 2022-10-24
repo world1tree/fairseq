@@ -80,9 +80,11 @@ class TransformerModelBase(FairseqEncoderDecoderModel):
                 raise ValueError(
                     "--share-all-embeddings not compatible with --decoder-embed-path"
                 )
+            # encoder_embedding
             encoder_embed_tokens = cls.build_embedding(
                 cfg, src_dict, cfg.encoder.embed_dim, cfg.encoder.embed_path
             )
+            # decoder与encoder共用embedding
             decoder_embed_tokens = encoder_embed_tokens
             cfg.share_decoder_input_output_embed = True
         else:
@@ -105,6 +107,7 @@ class TransformerModelBase(FairseqEncoderDecoderModel):
 
         emb = Embedding(num_embeddings, embed_dim, padding_idx)
         # if provided, load from preloaded dictionaries
+        # 加载预训练的词向量
         if path:
             embed_dict = utils.parse_embedding(path)
             utils.load_embedding(embed_dict, dictionary, emb)
@@ -170,7 +173,10 @@ class TransformerModelBase(FairseqEncoderDecoderModel):
 
 
 def Embedding(num_embeddings, embedding_dim, padding_idx):
+    # 为什么需要padding_idx? 因为padding_idx根本不需要Embedding
     m = nn.Embedding(num_embeddings, embedding_dim, padding_idx=padding_idx)
+    # 为什么使用这个std初始化?
     nn.init.normal_(m.weight, mean=0, std=embedding_dim**-0.5)
+    # padding初始化为0
     nn.init.constant_(m.weight[padding_idx], 0)
     return m

@@ -66,6 +66,7 @@ def load_langpair_dataset(
     src_datasets = []
     tgt_datasets = []
 
+    # 无限迭代器从0开始
     for k in itertools.count():
         split_k = split + (str(k) if k > 0 else "")
 
@@ -88,10 +89,10 @@ def load_langpair_dataset(
         if truncate_source:
             src_dataset = AppendTokenDataset(
                 TruncateDataset(
-                    StripTokenDataset(src_dataset, src_dict.eos()),
+                    StripTokenDataset(src_dataset, src_dict.eos()),  # 去掉末尾eos
                     max_source_positions - 1,
                 ),
-                src_dict.eos(),
+                src_dict.eos(), # 加上eos
             )
         src_datasets.append(src_dataset)
 
@@ -124,6 +125,7 @@ def load_langpair_dataset(
         else:
             tgt_dataset = None
 
+    # False
     if prepend_bos:
         assert hasattr(src_dict, "bos_index") and hasattr(tgt_dict, "bos_index")
         src_dataset = PrependTokenDataset(src_dataset, src_dict.bos())
@@ -175,7 +177,7 @@ class TranslationConfig(FairseqDataclass):
     data: Optional[str] = field(
         default=None,
         metadata={
-            "help": "colon separated path to data directories list, will be iterated upon during epochs "
+            "help": "colon(冒号) separated path to data directories list, will be iterated upon during epochs "
             "in round-robin manner; however, valid and test data are always in the first directory "
             "to avoid the need for repeating them in all directories"
         },
@@ -197,6 +199,7 @@ class TranslationConfig(FairseqDataclass):
     load_alignments: bool = field(
         default=False, metadata={"help": "load the binarized alignments"}
     )
+    # 默认为什么需要在source左边进行pad
     left_pad_source: bool = field(
         default=True, metadata={"help": "pad the source on the left"}
     )
@@ -279,7 +282,7 @@ class TranslationTask(FairseqTask):
         :mod:`fairseq-generate` and :mod:`fairseq-interactive`.
     """
 
-    cfg: TranslationConfig
+    cfg: TranslationConfig # 好像是多余的
 
     def __init__(self, cfg: TranslationConfig, src_dict, tgt_dict):
         super().__init__(cfg)
@@ -289,11 +292,17 @@ class TranslationTask(FairseqTask):
     @classmethod
     def setup_task(cls, cfg: TranslationConfig, **kwargs):
         """Setup the task (e.g., load dictionaries).
+        1. 在register_task时，dataclass被设置到类属性中
+        2. 在parse_args_and_arch中，dataclass被task的add_args加载到parser中
+        后来执行args = parser.parse_args(), args已经确定
+        3. 在tasks.setup_task时, 通过调用dataclass的from_namespace方法，
+        从args取得参数并且实例化自身, 也就是这里作为参数传入的cfg(该类自身的cfg没有被cli值填充)
 
         Args:
             args (argparse.Namespace): parsed command-line arguments
         """
-
+        # data不需要在命令行指定--data, 因为add-argument时没有指定--data, 而是data
+        # 这里的data可以是:分开的多个路径, 但是验证集和测试集必须在第一个路径中，可以避免重复
         paths = utils.split_paths(cfg.data)
         assert len(paths) > 0
         # find language pair automatically
@@ -334,7 +343,7 @@ class TranslationTask(FairseqTask):
 
         # infer langcode
         src, tgt = self.cfg.source_lang, self.cfg.target_lang
-
+        # {'id': xx, 'source': yy, 'target': zz}
         self.datasets[split] = load_langpair_dataset(
             data_path,
             split,
@@ -366,6 +375,8 @@ class TranslationTask(FairseqTask):
         )
 
     def build_model(self, cfg, from_checkpoint=False):
+        # cfg是模型相关的参数, 理论上只有model里定义的__dataclass对应的参数
+        # 但是transformer是所有的参数(因为register_model时没有指定dataclass)
         model = super().build_model(cfg, from_checkpoint)
         if self.cfg.eval_bleu:
             detok_args = json.loads(self.cfg.eval_bleu_detok_args)

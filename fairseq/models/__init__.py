@@ -54,6 +54,8 @@ __all__ = [
 
 
 def build_model(cfg: FairseqDataclass, task, from_checkpoint=False):
+    # 首先寻找到具体的某个model, 然后生成对应的dataclass配置cfg
+    # 之后调用model.build_model(cfg, task)
 
     model = None
     model_type = getattr(cfg, "_name", None) or getattr(cfg, "arch", None)
@@ -85,7 +87,7 @@ def build_model(cfg: FairseqDataclass, task, from_checkpoint=False):
         dc = MODEL_DATACLASS_REGISTRY[model_type]
 
         if isinstance(cfg, argparse.Namespace):
-            cfg = dc.from_namespace(cfg)
+            cfg = dc.from_namespace(cfg)  # 获取所有参数
         else:
             cfg = merge_with_parent(dc(), cfg, from_checkpoint)
     else:
@@ -197,7 +199,7 @@ def register_model_architecture(model_name, arch_name):
             raise ValueError(
                 "Model architecture must be callable ({})".format(arch_name)
             )
-        # 架构和模型用的是同一个类
+        # 架构和模型用的是同一个类!!!
         ARCH_MODEL_REGISTRY[arch_name] = MODEL_REGISTRY[model_name]
         ARCH_MODEL_NAME_REGISTRY[arch_name] = model_name
         # setdefault应该可以取代defaultdict

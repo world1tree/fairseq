@@ -74,6 +74,7 @@ def main(cfg: FairseqConfig) -> None:
     # Print args
     logger.info(cfg)
 
+    # 异步写checkpoint
     if cfg.checkpoint.write_checkpoints_asynchronously:
         try:
             import iopath  # noqa: F401
@@ -87,13 +88,17 @@ def main(cfg: FairseqConfig) -> None:
     # Setup task, e.g., translation, language modeling, etc.
     task = tasks.setup_task(cfg.task)
 
+    # 损失函数
     assert cfg.criterion, "Please specify criterion to train a model"
 
     # Build model and criterion
+    # 多gpu训练的时候报错，改用dpp_backend: no_c10d正常
+    # 默认是pytorch_ddp
     if cfg.distributed_training.ddp_backend == "fully_sharded":
         with fsdp_enable_wrap(cfg.distributed_training):
             model = fsdp_wrap(task.build_model(cfg.model))
     else:
+        # model参数是在convert_namespace_to_omegaconf时加的
         model = task.build_model(cfg.model)
     criterion = task.build_criterion(cfg.criterion)
     logger.info(model)
@@ -127,6 +132,7 @@ def main(cfg: FairseqConfig) -> None:
     # Load valid dataset (we load training data below, based on the latest checkpoint)
     # We load the valid dataset AFTER building the model
     data_utils.raise_if_valid_subsets_unintentionally_ignored(cfg)
+    # 为什么先加载valid数据集? task.datasets['valid']访问
     if cfg.dataset.combine_valid_subsets:
         task.load_dataset("valid", combine=True, epoch=1)
     else:
@@ -144,6 +150,7 @@ def main(cfg: FairseqConfig) -> None:
         quantizer = None
 
     # Build trainer
+    # 与distributed-world-size有何区别？
     if cfg.common.model_parallel_size == 1:
         trainer = Trainer(cfg, task, model, criterion, quantizer)
     else:
@@ -540,9 +547,16 @@ def cli_main(
     modify_parser: Optional[Callable[[argparse.ArgumentParser], None]] = None
 ) -> None:
     parser = options.get_training_parser()
+    # 所有参数都parse结束
     args = options.parse_args_and_arch(parser, modify_parser=modify_parser)
-
+    # 这里的args是参数的返回值，是扁平化的一维结构
     cfg = convert_namespace_to_omegaconf(args)
+    # cfg(DictConfig类型)key目前包括
+    # 1. (DictConfig类型)
+    # bmuf, checkpoint, common, common_eval,criterion, dataset, distributed_training, ema
+    # eval_lm, generation, interactive, lr_scheduler, model, optimization, optimizer, scoring, task
+    # 2. (NoneType)
+    # bpe, simul_type, tokenizer
 
     if cfg.common.use_plasma_view:
         server = PlasmaStore(path=cfg.common.plasma_path)

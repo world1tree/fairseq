@@ -1108,22 +1108,25 @@ class EMAConfig(FairseqDataclass):
 
 @dataclass
 class FairseqConfig(FairseqDataclass):
+    # 配置的所有参数都在这里(除了simul_type)
+    # 最开始通过各种方法把它们添加到arg_parser里，此时是一维的结构
+    # 再然后通过
+    bmuf: FairseqBMUFConfig = FairseqBMUFConfig()
+    checkpoint: CheckpointConfig = CheckpointConfig()
     common: CommonConfig = CommonConfig()
     common_eval: CommonEvalConfig = CommonEvalConfig()
-    distributed_training: DistributedTrainingConfig = DistributedTrainingConfig()
-    dataset: DatasetConfig = DatasetConfig()
-    optimization: OptimizationConfig = OptimizationConfig()
-    checkpoint: CheckpointConfig = CheckpointConfig()
-    bmuf: FairseqBMUFConfig = FairseqBMUFConfig()
-    generation: GenerationConfig = GenerationConfig()
-    eval_lm: EvalLMConfig = EvalLMConfig()
-    interactive: InteractiveConfig = InteractiveConfig()
-    model: Any = MISSING
-    task: Any = None
     criterion: Any = None
-    optimizer: Any = None
+    dataset: DatasetConfig = DatasetConfig()
+    distributed_training: DistributedTrainingConfig = DistributedTrainingConfig()
+    ema: EMAConfig = EMAConfig()
+    eval_lm: EvalLMConfig = EvalLMConfig()
+    generation: GenerationConfig = GenerationConfig()
+    interactive: InteractiveConfig = InteractiveConfig()
     lr_scheduler: Any = None
+    model: Any = MISSING
+    optimization: OptimizationConfig = OptimizationConfig()
+    optimizer: Any = None
     scoring: Any = None
+    task: Any = None
     bpe: Any = None
     tokenizer: Any = None
-    ema: EMAConfig = EMAConfig()

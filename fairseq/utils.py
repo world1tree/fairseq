@@ -211,6 +211,8 @@ def load_embedding(embed_dict, vocab, embedding):
     for idx in range(len(vocab)):
         token = vocab[idx]
         if token in embed_dict:
+            # https://discuss.pytorch.org/t/layer-weight-vs-weight-data/24271/3
+            # 为什么不直接用weight，而是使用weight.data
             embedding.weight.data[idx] = embed_dict[token]
     return embedding
 

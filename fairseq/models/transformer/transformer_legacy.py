@@ -87,26 +87,36 @@ class TransformerModel(TransformerModelBase):
         gen_parser_from_dataclass(
             parser, TransformerConfig(), delete_default=True, with_prefix=""
         )
+        # 这里没有按照正常流程来写
+        # 正常流程dataclass应该写在register_model, 作为dataclass参数传进去
+        # 这样的后果是convert_namespace_to_omegaconf/override_module_args
+        # 无法获取到model的参数, 因为没有__dataclass属性
+        # 后续的with omegaconf_no_object_check()目前也只是把args全部赋给了cfg.model !!!(bug)
 
     @classmethod
     def build_model(cls, args, task):
         """Build a new model instance."""
 
         # make sure all arguments are present in older models
-        base_architecture(args)
+        base_architecture(args)  # 不如assert
 
+        # 这里默认都是没有的
         if args.encoder_layers_to_keep:
             args.encoder_layers = len(args.encoder_layers_to_keep.split(","))
         if args.decoder_layers_to_keep:
             args.decoder_layers = len(args.decoder_layers_to_keep.split(","))
 
+        # 输入的最长长度, 1024
         if getattr(args, "max_source_positions", None) is None:
             args.max_source_positions = DEFAULT_MAX_SOURCE_POSITIONS
+        # 输出的最长长度, 1024
         if getattr(args, "max_target_positions", None) is None:
             args.max_target_positions = DEFAULT_MAX_TARGET_POSITIONS
 
+        # 词典
         src_dict, tgt_dict = task.source_dictionary, task.target_dictionary
 
+        # 被cli设定为true了
         if args.share_all_embeddings:
             if src_dict != tgt_dict:
                 raise ValueError("--share-all-embeddings requires a joined dictionary")
@@ -122,6 +132,7 @@ class TransformerModel(TransformerModelBase):
                 )
             args.share_decoder_input_output_embed = True
 
+        # False
         if getattr(args, "offload_activations", False):
             args.checkpoint_activations = True  # offloading implies checkpointing
 
@@ -129,6 +140,7 @@ class TransformerModel(TransformerModelBase):
             args.min_params_to_wrap = getattr(
                 args, "min_params_to_wrap", DEFAULT_MIN_PARAMS_TO_WRAP
             )
+        # from_namespace也没有返回model独有的参数, 而是来自args所有的参数
         cfg = TransformerConfig.from_namespace(args)
         return super().build_model(cfg, task)
 
@@ -171,7 +183,7 @@ def base_architecture(args):
     # 这些参数到底是干啥的? args类型是什么？
     # args是parse.parse_args()的返回值，这里是对最终得到的参数进行后处理
     # 如果定义了某个参数，那么不会覆盖
-    # 如果没有定义某个参数，那么会有默认值(理论上可以把模型参数放在这里，这样就不用从cli传参了)
+    # 如果没有定义某个参数，那么会有默认值
     args.encoder_embed_path = getattr(args, "encoder_embed_path", None)
     args.encoder_embed_dim = getattr(args, "encoder_embed_dim", 512)
     args.encoder_ffn_embed_dim = getattr(args, "encoder_ffn_embed_dim", 2048)

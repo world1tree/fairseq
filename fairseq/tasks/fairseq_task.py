@@ -37,6 +37,7 @@ class StatefulContainer(object):
         return self._state
 
     def __getattr__(self, name):
+        # 注意与__getitem__区别, getitem是获取[name]的值
         if name not in self._state and name in self._factories:
             self._state[name] = self._factories[name]()
 
@@ -51,11 +52,13 @@ class FairseqTask(object):
     Tasks store dictionaries and provide helpers for loading/iterating over
     Datasets, initializing the Model/Criterion and calculating the loss.
 
+    # self.state用来保存当前模型的状态(checkpoint)，load与save可以自定义函数
     Tasks have limited statefulness. In particular, state that needs to be
     saved to/loaded from checkpoints needs to be stored in the `self.state`
     :class:`StatefulContainer` object. For example::
 
         self.state.add_factory("dictionary", self.load_dictionary)
+        # 这里会直接实例化self.load_dictionary()
         print(self.state.dictionary)  # calls self.load_dictionary()
 
     This is necessary so that when loading checkpoints, we can properly
@@ -65,6 +68,7 @@ class FairseqTask(object):
     @classmethod
     def add_args(cls, parser):
         """Add task-specific arguments to the parser."""
+        # __dataclass在register_task时已经被设置
         dc = getattr(cls, "__dataclass", None)
         if dc is not None:
             gen_parser_from_dataclass(parser, dc())
@@ -80,7 +84,7 @@ class FairseqTask(object):
 
     def __init__(self, cfg: FairseqDataclass, **kwargs):
         self.cfg = cfg
-        self.datasets = dict()
+        self.datasets = dict()  # key: name(train/valid/test), value: FairSeqDataset
         self.dataset_to_epoch_iter = dict()
         self.state = StatefulContainer()
 
@@ -138,7 +142,7 @@ class FairseqTask(object):
         task_cfg: FairseqDataclass = None,
         **kwargs,
     ):
-        """Load a given dataset split.
+        """Load a given dataset split. 需要自己实现
 
         Args:
             split (str): name of the split (e.g., train, valid, test)
@@ -184,6 +188,9 @@ class FairseqTask(object):
         """
         indices, ignored = dataset.filter_indices_by_size(indices, max_positions)
         if len(ignored) > 0:
+            # 这个错是因为句子长度>max_positions并且没有设置--skip-invalid-size-inputs-valid-test
+            # (en-de翻译会有这个问题应该是因为验证集不同)
+            # max_positions似乎是元组
             if not ignore_invalid_inputs:
                 raise Exception(
                     (

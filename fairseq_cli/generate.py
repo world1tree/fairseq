@@ -58,6 +58,7 @@ def get_symbols_to_strip_from_output(generator):
 
 
 def _main(cfg: DictConfig, output_file):
+    # generate有个问题，使用cpu跑代码会跑到gpu上，需要找原因
     logging.basicConfig(
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",

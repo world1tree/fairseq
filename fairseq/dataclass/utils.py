@@ -65,6 +65,7 @@ def gen_parser_from_dataclass(
 
     def argparse_name(name: str):
         if name == "data" and (with_prefix is None or with_prefix == ""):
+            # data是位置参数！！！
             # normally data is positional args, so we don't add the -- nor the prefix
             return name
         if name == "_name":
@@ -73,6 +74,7 @@ def gen_parser_from_dataclass(
         full_name = "--" + name.replace("_", "-")
         if with_prefix is not None and with_prefix != "":
             # if a prefix is specified, construct the prefixed arg name
+            # arg过滤后，会把所有-转变成_!!! 但是命令行传入的依然是_(下划线)
             full_name = with_prefix + "-" + full_name[2:]  # strip -- when composing
         return full_name
 
@@ -203,7 +205,7 @@ def _set_legacy_defaults(args, cls):
     parser = argparse.ArgumentParser(
         argument_default=argparse.SUPPRESS, allow_abbrev=False
     )
-    cls.add_args(parser)
+    cls.add_args(parser) # parser重新设置参数表
     # copied from argparse.py:
     defaults = argparse.Namespace()
     for action in parser._actions:
@@ -220,7 +222,7 @@ def _override_attr(
     sub_node: str, data_class: Type[FairseqDataclass], args: Namespace
 ) -> List[str]:
     overrides = []
-
+    # _name之类的，直接返回[]
     if not inspect.isclass(data_class) or not issubclass(data_class, FairseqDataclass):
         return overrides
 
@@ -230,6 +232,7 @@ def _override_attr(
         return f.default
 
     for k, v in data_class.__dataclass_fields__.items():
+        print(k, v)
         if k.startswith("_"):
             # private member, skip
             continue
@@ -270,6 +273,7 @@ def _override_attr(
             except:
                 pass  # ignore errors here, they are often from interpolation args
 
+        # 添加结构化数据，从这里可以看到FairSeqDataclass是可以无限嵌套的
         if val is None:
             overrides.append("{}.{}=null".format(sub_node, k))
         elif val == "":
@@ -304,7 +308,7 @@ def migrate_registry(
 
 def override_module_args(args: Namespace) -> Tuple[List[str], List[str]]:
     """use the field in args to overrides those in cfg"""
-    overrides = []
+    overrides = []  # 存储xx.yy.zz的值
     deletes = []
 
     for k in FairseqConfig.__dataclass_fields__.keys():
@@ -315,7 +319,7 @@ def override_module_args(args: Namespace) -> Tuple[List[str], List[str]]:
     if args is not None:
         if hasattr(args, "task"):
             from fairseq.tasks import TASK_DATACLASS_REGISTRY
-
+            # 应该是历史遗留问题
             migrate_registry(
                 "task", args.task, TASK_DATACLASS_REGISTRY, args, overrides, deletes
             )
@@ -324,8 +328,11 @@ def override_module_args(args: Namespace) -> Tuple[List[str], List[str]]:
 
         # these options will be set to "None" if they have not yet been migrated
         # so we can populate them with the entire flat args
+        # 这些为什么没有被加到overrides里? FaiseqConfig的定义里面默认值都是None(包括task也是None)
         CORE_REGISTRIES = {"criterion", "optimizer", "lr_scheduler"}
 
+        # 这些在FairseqConfig里的定义全部都是None, config散落在各个文件下
+        # keys: ['criterion', 'tokenizer', 'bpe', 'optimizer', 'lr_scheduler', 'simul_type', 'scoring']
         from fairseq.registry import REGISTRIES
 
         for k, v in REGISTRIES.items():
@@ -354,7 +361,7 @@ def override_module_args(args: Namespace) -> Tuple[List[str], List[str]]:
                     overrides.append("model={}".format(m_name))
                     overrides.append("model._name={}".format(args.arch))
                     # override model params with those exist in args
-                    overrides.extend(_override_attr("model", dc, args))
+                    overrides.extend(_override_attr("model", dc, args)) # 这里会加载model对应的所有参数
                     no_dc = False
         if no_dc:
             deletes.append("model")

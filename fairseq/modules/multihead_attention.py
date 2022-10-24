@@ -98,11 +98,11 @@ class MultiheadAttention(nn.Module):
         if self.use_xformers and not _xformers_available:
             raise ImportError("\n\n  Please install xFormers.")
         self.embed_dim = embed_dim
-        self.kdim = kdim if kdim is not None else embed_dim
-        self.vdim = vdim if vdim is not None else embed_dim
+        self.kdim = kdim if kdim is not None else embed_dim # 512
+        self.vdim = vdim if vdim is not None else embed_dim # 512
         self.qkv_same_dim = self.kdim == embed_dim and self.vdim == embed_dim
 
-        self.num_heads = num_heads
+        self.num_heads = num_heads    # 8
         self.dropout_module = FairseqDropout(
             dropout, module_name=self.__class__.__name__
         )
@@ -111,7 +111,7 @@ class MultiheadAttention(nn.Module):
         assert (
             self.head_dim * num_heads == self.embed_dim
         ), "embed_dim must be divisible by num_heads"
-        self.scaling = self.head_dim**-0.5
+        self.scaling = self.head_dim**-0.5    # sqrt?
 
         self.self_attention = self_attention
         self.encoder_decoder_attention = encoder_decoder_attention
@@ -121,16 +121,20 @@ class MultiheadAttention(nn.Module):
         )
 
         self.k_proj = quant_noise(
+            # 512, 512
             nn.Linear(self.kdim, embed_dim, bias=bias), q_noise, qn_block_size
         )
         self.v_proj = quant_noise(
+            # 512, 512
             nn.Linear(self.vdim, embed_dim, bias=bias), q_noise, qn_block_size
         )
         self.q_proj = quant_noise(
+            # 512, 512
             nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
         )
 
         self.out_proj = quant_noise(
+            # 512, 512
             nn.Linear(embed_dim, embed_dim, bias=bias), q_noise, qn_block_size
         )
 

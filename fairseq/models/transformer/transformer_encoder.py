@@ -48,37 +48,44 @@ class TransformerEncoderBase(FairseqEncoder):
     def __init__(self, cfg, dictionary, embed_tokens, return_fc=False):
         self.cfg = cfg
         super().__init__(dictionary)
+        # buffer不被认为是模型的参数, 但可以访问
         self.register_buffer("version", torch.Tensor([3]))
 
+        # transformer中是0.1
         self.dropout_module = FairseqDropout(
             cfg.dropout, module_name=module_name_fordropout(self.__class__.__name__)
         )
+        # 默认是0
         self.encoder_layerdrop = cfg.encoder.layerdrop
         self.return_fc = return_fc
-
+        # 512
         embed_dim = embed_tokens.embedding_dim
         self.padding_idx = embed_tokens.padding_idx
+        # source最大长度
         self.max_source_positions = cfg.max_source_positions
-
+        # nn.Embedding (len(vocab), embed_dim)
         self.embed_tokens = embed_tokens
 
+        # no_scale_embedding: False
         self.embed_scale = 1.0 if cfg.no_scale_embedding else math.sqrt(embed_dim)
 
         self.embed_positions = (
             PositionalEmbedding(
-                cfg.max_source_positions,
-                embed_dim,
-                self.padding_idx,
+                cfg.max_source_positions,  # 最大source长度
+                embed_dim,                 # 512
+                self.padding_idx,          #
                 learned=cfg.encoder.learned_pos,
             )
-            if not cfg.no_token_positional_embeddings
+            if not cfg.no_token_positional_embeddings   # 禁用positional_embedding
             else None
         )
+        # Defalut False
         if cfg.layernorm_embedding:
             self.layernorm_embedding = LayerNorm(embed_dim, export=cfg.export)
         else:
             self.layernorm_embedding = None
 
+        # False
         if not cfg.adaptive_input and cfg.quant_noise.pq > 0:
             self.quant_noise = apply_quant_noise_(
                 nn.Linear(embed_dim, embed_dim, bias=False),
@@ -88,15 +95,17 @@ class TransformerEncoderBase(FairseqEncoder):
         else:
             self.quant_noise = None
 
+        # 0
         if self.encoder_layerdrop > 0.0:
             self.layers = LayerDropModuleList(p=self.encoder_layerdrop)
         else:
             self.layers = nn.ModuleList([])
         self.layers.extend(
-            [self.build_encoder_layer(cfg) for i in range(cfg.encoder.layers)]
+            [self.build_encoder_layer(cfg) for i in range(cfg.encoder.layers)]  # 6 layers
         )
         self.num_layers = len(self.layers)
 
+        # False
         if cfg.encoder.normalize_before:
             self.layer_norm = LayerNorm(embed_dim, export=cfg.export)
         else:

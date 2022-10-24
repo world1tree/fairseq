@@ -26,6 +26,7 @@ class SinusoidalPositionalEmbedding(nn.Module):
             init_size, embedding_dim, padding_idx
         )
         self.onnx_trace = False
+        # 保存一个常数？
         self.register_buffer("_float_tensor", torch.FloatTensor(1))
         self.max_positions = int(1e5)
 

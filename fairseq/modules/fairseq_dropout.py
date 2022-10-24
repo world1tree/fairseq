@@ -15,9 +15,12 @@ logger = logging.getLogger(__name__)
 
 class FairseqDropout(nn.Module):
     def __init__(self, p, module_name=None):
+        # 之所以自定义Dropout, 是因为默认情况下，dropout只在train过程使用
+        # inference会自动关闭dropout, 现在现在需要控制是否在inference阶段关闭dropout
         super().__init__()
         self.p = p
         self.module_name = module_name
+        # 想在inference时使用dropout
         self.apply_during_inference = False
 
     def forward(self, x, inplace: bool = False):
