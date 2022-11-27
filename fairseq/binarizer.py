@@ -168,6 +168,7 @@ class FileBinarizer:
                     )
 
         #  now we can close the file
+        # 关闭bin文件，写入最终的idx文件
         idx_file = indexed_dataset.index_file_path(output_prefix)
         final_ds.finalize(idx_file)
         return final_summary
@@ -194,12 +195,14 @@ class FileBinarizer:
             impl=dataset_impl,
             vocab_size=vocab_size,
         )
+        # 记录当前处理了多少句子和单词, 把多少单词替换成了<unk>
         summary = BinarizeSummary()
 
         with Chunker(
             PathManager.get_local_path(filename), offset_start, offset_end
         ) as line_iterator:
             for line in line_iterator:
+                # VocabularyDatasetBinarizer().binarize_line
                 ds.add_item(binarizer.binarize_line(line, summary))
 
         return ds, summary
@@ -280,17 +283,18 @@ class VocabularyDatasetBinarizer(Binarizer):
                 id_list.append(self.dict.eos())
             ids = torch.IntTensor(id_list)
         else:
+            # 走该分支
             ids = self.dict.encode_line(
                 line=line,
                 line_tokenizer=self.tokenize,
-                add_if_not_exist=False,
+                add_if_not_exist=False,  # 正常情况下都应该设置为False
                 consumer=replaced_consumer,
                 append_eos=self.append_eos,
                 reverse_order=self.reverse_order,
             )
 
         summary.num_seq += 1
-        summary.num_tok += len(ids) # 可能算上了eos
+        summary.num_tok += len(ids) # 算上了eos
         return ids
 
 

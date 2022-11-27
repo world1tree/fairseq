@@ -567,9 +567,10 @@ class MMapIndexedDatasetBuilder:
         # 转成numpy, 再然后转成bytes写文件
         np_array = np.array(tensor.numpy(), dtype=self._dtype)
         self._data_file.write(np_array.tobytes(order="C"))
-        self._sizes.append(np_array.size) # token个数(可能包括eos)
+        self._sizes.append(np_array.size) # token个数(一定包括eos)
 
     def merge_file_(self, another_file):
+        # 合并其他进程生成的bin与idx文件
         # Concatenate index
         index = MMapIndexedDataset.Index(index_file_path(another_file))
         assert index.dtype == self._dtype
@@ -582,6 +583,7 @@ class MMapIndexedDatasetBuilder:
             shutil.copyfileobj(f, self._data_file)
 
     def finalize(self, index_file):
+        # 关闭bin文件，写入idx文件
         self._data_file.close()
 
         with MMapIndexedDataset.Index.writer(index_file, self._dtype) as index:

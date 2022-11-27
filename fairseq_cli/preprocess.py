@@ -83,6 +83,7 @@ def _build_dictionary(
     tgt=False,
 ):
     assert src ^ tgt
+    # 在基类fairseq_task中
     return task.build_dictionary(
         filenames,
         workers=args.workers,
@@ -109,7 +110,7 @@ def _make_binary_dataset(
 
     binarizer = VocabularyDatasetBinarizer(
         vocab,              # encode_line
-        append_eos=True,
+        append_eos=True,    # append_eps是fairseq默认的，即每个句子后都有个<eos>结束标志
     )
 
     input_file = "{}{}".format(input_prefix, ("." + lang) if lang is not None else "")
@@ -274,7 +275,7 @@ def _align_files(args, src_dict, tgt_dict):
 
 
 def main(args):
-    # setup some basic things
+    # setup some basic things, preprocess, 无--user_dir参数
     utils.import_user_module(args)
 
     os.makedirs(args.destdir, exist_ok=True)
@@ -306,6 +307,7 @@ def main(args):
     ):
         raise FileExistsError(_dict_path(args.target_lang, args.destdir))
 
+    # 这里需要task的原因主要是为了构建/加载词表
     task = tasks.get_task(args.task)
 
     if args.joined_dictionary:
@@ -313,6 +315,7 @@ def main(args):
             not args.srcdict or not args.tgtdict
         ), "cannot use both --srcdict and --tgtdict with --joined-dictionary"
 
+        # 可以加载词表，这样就可以不用重新构建
         if args.srcdict:
             src_dict = task.load_dictionary(args.srcdict)
         elif args.tgtdict:
@@ -321,6 +324,7 @@ def main(args):
             assert (
                 args.trainpref
             ), "--trainpref must be set if --srcdict is not specified"
+            # type- Dictionary from dictionary.py
             src_dict = _build_dictionary(
                 {
                     _train_path(lang, args.trainpref)
@@ -352,6 +356,7 @@ def main(args):
                 assert (
                     args.trainpref
                 ), "--trainpref must be set if --tgtdict is not specified"
+                # 仅使用train数据构建词表
                 tgt_dict = _build_dictionary(
                     [_train_path(args.target_lang, args.trainpref)],
                     task=task,
@@ -363,6 +368,7 @@ def main(args):
 
     # save dictionaries
 
+    # 把词表保存到文件dict.lang.txt中
     src_dict.save(_dict_path(args.source_lang, args.destdir))
     if target and tgt_dict is not None:
         tgt_dict.save(_dict_path(args.target_lang, args.destdir))

@@ -117,7 +117,7 @@ class FairseqTask(object):
         d = Dictionary()
         for filename in filenames:
             Dictionary.add_file_to_dictionary(
-                filename, d, tokenizer.tokenize_line, workers
+                filename, d, tokenizer.tokenize_line, workers  # tokenizer.tokenize_line是把句子按照空格来切分的
             )
         # 需要调用finalize控制词表参数
         d.finalize(threshold=threshold, nwords=nwords, padding_factor=padding_factor)

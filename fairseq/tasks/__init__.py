@@ -102,6 +102,7 @@ def register_task(name, dataclass=None):
             node = dataclass()
             # 这里指定了配置对应的task name
             node._name = name
+            # 任务名, 任务配置
             cs.store(name=name, group="task", node=node, provider="fairseq")
 
         return cls
@@ -142,11 +143,14 @@ def import_tasks(tasks_dir, namespace):
                 # 不同task的具体实现类继承了FairseqTask, 而FairSeqTask有add_args类方法可以
                 # 为传入的parser增加额外的参数, 具体实现类需要有__dataclass属性, _dataclass可以在
                 # register_task中传入，add_args会把dataclass中的所有配置应用到group_args上
+                # 1. task_class通过register_task装饰器传入_dataclass, 把自身注册到TASK_REGISTRY中
+                # 2. add_args从_dataclass中获取命令行选项
                 TASK_REGISTRY[task_name].add_args(group_args)
                 # 把该task的配置参数加入全局变量
                 globals()[task_name + "_parser"] = parser
 
 
+# 在__init__.py文件中import当前目录下的所有module, 每个module的特定类都使用装饰器来定义，映射到一个字典中
 # automatically import any Python files in the tasks/ directory
 tasks_dir = os.path.dirname(__file__)
 import_tasks(tasks_dir, "fairseq.tasks")

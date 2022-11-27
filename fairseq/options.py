@@ -295,7 +295,7 @@ def add_preprocess_args(parser):
     # 相当于working_dir
     group.add_argument("--destdir", metavar="DIR", default="data-bin",
                        help="destination dir")
-    # 出现次数过少的单词忽略
+    # 出现次数过少的单词不会被加入到词表中
     group.add_argument("--thresholdtgt", metavar="N", default=0, type=int,
                        help="map words appearing less than threshold times to unknown")
     group.add_argument("--thresholdsrc", metavar="N", default=0, type=int,
@@ -306,8 +306,10 @@ def add_preprocess_args(parser):
     # 字典文件src, 不指定default, 那么default=None
     group.add_argument("--srcdict", metavar="FP",
                        help="reuse given source dictionary")
+    # tgt词表大小
     group.add_argument("--nwordstgt", metavar="N", default=-1, type=int,
                        help="number of target words to retain")
+    # src词表大小
     group.add_argument("--nwordssrc", metavar="N", default=-1, type=int,
                        help="number of source words to retain")
     # 这个又是干啥的?

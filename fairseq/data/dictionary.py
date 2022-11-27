@@ -72,6 +72,7 @@ class Dictionary:
         assert isinstance(sym, str)
         if sym in self.indices:
             return self.indices[sym]
+        # 不在词表中则返回<unk>
         return self.unk_index
 
     def string(
@@ -133,6 +134,7 @@ class Dictionary:
 
     def add_symbol(self, word, n=1, overwrite=False):
         """Adds a word to the dictionary"""
+        # n: word出现的次数
         if word in self.indices and not overwrite:
             idx = self.indices[word]
             self.count[idx] = self.count[idx] + n
@@ -172,6 +174,7 @@ class Dictionary:
         if nwords <= 0:
             nwords = len(self)
 
+        # 首先取出special字符
         new_indices = dict(zip(self.symbols[: self.nspecial], range(self.nspecial)))
         new_symbols = self.symbols[: self.nspecial]
         new_count = self.count[: self.nspecial]
@@ -201,6 +204,7 @@ class Dictionary:
 
     def pad_to_multiple_(self, padding_factor):
         """Pad Dictionary size to be a multiple of *padding_factor*."""
+        # 用自己创建的单词把词表填充到padding_factor的倍数
         if padding_factor > 1:
             i = 0
             while len(self) % padding_factor != 0:
@@ -289,12 +293,12 @@ class Dictionary:
         if isinstance(f, str):
             PathManager.mkdirs(os.path.dirname(f))
             with PathManager.open(f, "w", encoding="utf-8") as fd:
-                return self.save(fd) # 如果是字符串 call a->b->a->b结束
+                return self.save(fd) # 如果是字符串 call save->_save->save->_save结束
         for k, v in kv_iterator:
             print("{} {}".format(k, v), file=f)
 
     def _get_meta(self):
-        # 准备子类覆盖？
+        # 准备子类覆盖？ 可以添加词表列的说明(如["word"], ["freq"])
         return [], []
 
     def _load_meta(self, lines):
@@ -321,7 +325,7 @@ class Dictionary:
         self,
         line,
         line_tokenizer=tokenize_line,
-        add_if_not_exist=True,
+        add_if_not_exist=True,  # 应该设置为False, 因为词表已经生成，不应该做任何修改
         consumer=None,
         append_eos=True,
         reverse_order=False,
@@ -332,10 +336,11 @@ class Dictionary:
         if reverse_order:
             words = list(reversed(words))
         nwords = len(words)
-        # 没有加入bos!!!
+        # 没有加入bos!!! 算上了eos!!!
         ids = torch.IntTensor(nwords + 1 if append_eos else nwords)
 
         for i, word in enumerate(words):
+            # False
             if add_if_not_exist:
                 # add_symbol方法内处理了重复word的情形
                 # 1. 如果word不存在词表中，那么加入
@@ -362,14 +367,15 @@ class Dictionary:
         with Chunker(filename, start_offset, end_offset) as line_iterator:
             for line in line_iterator:
                 for word in tokenize(line):
-                    counter.update([word])
-                counter.update([eos_word])
-        return counter
+                    counter.update([word])  # why not use counter.update(tokenize(line))?
+                counter.update([eos_word])  # 非常重要，从最开始统计词表的时候，默认就是所有句子都有<s/>结束标志
+        return counter # 统计词频，每个句子末尾的</s>也包括在内，不包括<s>
 
     @staticmethod
     def add_file_to_dictionary(filename, dict, tokenize, num_workers):
         def merge_result(counter):
-            # 这里是把所有word都统计了, 最终需要调用finalize
+            # 按照词频从大到小的顺序添加(针对single_worker的结果), 最终需要调用finalize
+            # 为什么需要sorted?
             for w, c in sorted(counter.items()):
                 dict.add_symbol(w, c)
 
