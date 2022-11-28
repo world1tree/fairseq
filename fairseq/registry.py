@@ -24,7 +24,7 @@ def setup_registry(registry_name: str, base_class=None, default=None, required=F
     registry_name = registry_name[2:].replace("-", "_")
 
     REGISTRY = {}               # 与register_task类似, 存储name: cls
-    REGISTRY_CLASS_NAMES = set()
+    REGISTRY_CLASS_NAMES = set() # 这个后面并没有传出去，只是为了防止出现重复的class name
     DATACLASS_REGISTRY = {}
 
     # maintain a registry of all registries(task除外)
@@ -69,6 +69,7 @@ def setup_registry(registry_name: str, base_class=None, default=None, required=F
     def register_x(name, dataclass=None):
         # 第二层是装饰器修饰的函数或类
         # 由于不需要知道类的参数，所以不需要第三层
+        # dataclass必须继承自FairseqDataclass
         def register_x_cls(cls):
             if name in REGISTRY:
                 raise ValueError(

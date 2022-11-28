@@ -237,7 +237,7 @@ def parse_args_and_arch(
 def get_parser(desc, default_task="translation"):
     # Before creating the true parser, we need to import optional user module
     # in order to eagerly import custom tasks, optimizers, architectures, etc.
-    # user_dir里是用户自定义的代码
+    # user_dir里是用户自定义的代码目录
     # argparse可以按需要重复调用, 相当于每次都parse传入的命令行参数
     usr_parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
     usr_parser.add_argument("--user-dir", default=None)

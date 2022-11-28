@@ -120,7 +120,7 @@ def import_tasks(tasks_dir, namespace):
         if (
             not file.startswith("_")
             and not file.startswith(".")
-            and (file.endswith(".py") or os.path.isdir(path)) # 如果path是文件夹怎么办?
+            and (file.endswith(".py") or os.path.isdir(path)) # 如果path是文件夹怎么办? => 自己在文件夹下的__init__.py文件中import所有的module
         ):
             task_name = file[: file.find(".py")] if file.endswith(".py") else file
             # task_name必须唯一
