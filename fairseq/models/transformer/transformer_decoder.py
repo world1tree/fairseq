@@ -26,6 +26,7 @@ from fairseq.modules import (
 from fairseq.modules.checkpoint_activations import checkpoint_wrapper
 from fairseq.modules.quant_noise import quant_noise as apply_quant_noise_
 from torch import Tensor
+from fairseq.utils import random_pad_emb
 
 
 # rewrite name for backward compatibility in `make_generation_fast_`
@@ -194,6 +195,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
         alignment_heads: Optional[int] = None,
         src_lengths: Optional[Any] = None,
         return_all_hiddens: bool = False,
+        pert=False,
     ):
         """
         Args:
@@ -221,6 +223,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
             full_context_alignment=full_context_alignment,
             alignment_layer=alignment_layer,
             alignment_heads=alignment_heads,
+            pert=pert,
         )
 
         if not features_only:
@@ -235,6 +238,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
         full_context_alignment: bool = False,
         alignment_layer: Optional[int] = None,
         alignment_heads: Optional[int] = None,
+        pert=False
     ):
         return self.extract_features_scriptable(
             prev_output_tokens,
@@ -243,6 +247,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
             full_context_alignment,
             alignment_layer,
             alignment_heads,
+            pert=pert
         )
 
     """
@@ -259,6 +264,7 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
         full_context_alignment: bool = False,
         alignment_layer: Optional[int] = None,
         alignment_heads: Optional[int] = None,
+        pert=False
     ):
         """
         Similar to *forward* but only return features.
@@ -306,6 +312,8 @@ class TransformerDecoderBase(FairseqIncrementalDecoder):
         prev_output_tokens = prev_output_tokens.contiguous()
         # embed tokens and positions
         x = self.embed_scale * self.embed_tokens(prev_output_tokens)
+        if pert:
+            x = random_pad_emb(x)
 
         if self.quant_noise is not None:
             x = self.quant_noise(x)

@@ -86,6 +86,7 @@ def main(cfg: FairseqConfig) -> None:
             return
 
     # Setup task, e.g., translation, language modeling, etc.
+    # class: TranslationTask
     task = tasks.setup_task(cfg.task)
 
     # 损失函数

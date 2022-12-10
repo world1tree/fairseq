@@ -81,6 +81,7 @@ class TransformerModelBase(FairseqEncoderDecoderModel):
                     "--share-all-embeddings not compatible with --decoder-embed-path"
                 )
             # encoder_embedding
+            # type(encoder_embed_tokens): nn.Embedding
             encoder_embed_tokens = cls.build_embedding(
                 cfg, src_dict, cfg.encoder.embed_dim, cfg.encoder.embed_path
             )
@@ -137,6 +138,7 @@ class TransformerModelBase(FairseqEncoderDecoderModel):
         features_only: bool = False,
         alignment_layer: Optional[int] = None,
         alignment_heads: Optional[int] = None,
+        pert=False,
     ):
         """
         Run the forward pass for an encoder-decoder model.
@@ -145,7 +147,7 @@ class TransformerModelBase(FairseqEncoderDecoderModel):
         which are not supported by TorchScript.
         """
         encoder_out = self.encoder(
-            src_tokens, src_lengths=src_lengths, return_all_hiddens=return_all_hiddens
+            src_tokens, src_lengths=src_lengths, return_all_hiddens=return_all_hiddens, pert=pert
         )
         decoder_out = self.decoder(
             prev_output_tokens,
@@ -155,6 +157,7 @@ class TransformerModelBase(FairseqEncoderDecoderModel):
             alignment_heads=alignment_heads,
             src_lengths=src_lengths,
             return_all_hiddens=return_all_hiddens,
+            pert=pert
         )
         return decoder_out
 

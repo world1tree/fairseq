@@ -846,3 +846,15 @@ def safe_getattr(obj, k, default=None):
 def safe_hasattr(obj, k):
     """Returns True if the given key exists and is not None."""
     return getattr(obj, k, None) is not None
+
+def random_pad_emb(emb, alpha=0.05):
+    """
+    randomly set zero vector using Bernoulli distribution
+        t: (seq_len, batch_sz, dim)
+    """
+    bernoulli_p = torch.full(emb.shape[:2], alpha, device=emb.device)
+    bernoulli_mask = torch.bernoulli(bernoulli_p) > 0
+
+    # (seq_len, batch_size)
+    emb_pert = emb.masked_fill(bernoulli_mask.unsqueeze(2), 0)
+    return emb_pert

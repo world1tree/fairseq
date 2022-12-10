@@ -37,8 +37,8 @@ class TransformerEncoderLayerBase(nn.Module):
         self.cfg = cfg
         self.return_fc = return_fc
         self.embed_dim = cfg.encoder.embed_dim # 512
-        self.quant_noise = cfg.quant_noise.pq  #
-        self.quant_noise_block_size = cfg.quant_noise.pq_block_size #
+        self.quant_noise = cfg.quant_noise.pq  # 0
+        self.quant_noise_block_size = cfg.quant_noise.pq_block_size # 8
         self.self_attn = self.build_self_attention(self.embed_dim, cfg)
         self.self_attn_layer_norm = LayerNorm(self.embed_dim, export=cfg.export)
         self.dropout_module = FairseqDropout(
