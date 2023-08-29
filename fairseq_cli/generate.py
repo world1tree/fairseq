@@ -182,6 +182,21 @@ def _main(cfg: DictConfig, output_file):
 
     scorer = scoring.build_scorer(cfg.scoring, tgt_dict)
 
+
+    def draw_heatmap(cos_matrix, tokens, title="default", save_path="0"):
+        import torch.nn.functional as F
+        import seaborn as sns
+        print("drawing %s.png ..."%save_path)
+        sim_matrix = F.cosine_similarity(cos_matrix.unsqueeze(0), cos_matrix.unsqueeze(1), dim=-1)
+        ax = sns.heatmap(sim_matrix.numpy(), annot=True, cmap="Blues", vmin=-0.2, vmax=1.0)
+        ax.set_xticklabels(tokens)
+        ax.set_yticklabels(tokens, rotation=0)
+        ax.set_title(title)
+        fig = ax.get_figure()
+        fig.savefig("%s.png" % save_path)
+        ax.clear()
+        fig.clear()
+
     num_sentences = 0
     has_target = True
     wps_meter = TimeMeter()
@@ -189,6 +204,25 @@ def _main(cfg: DictConfig, output_file):
         sample = utils.move_to_cuda(sample) if use_cuda else sample
         if "net_input" not in sample:
             continue
+
+        with torch.no_grad():
+            src_tokens = sample["net_input"]["src_tokens"]
+            print("src_tokens shape: ", src_tokens.shape)
+            target = sample["target"]
+            prev_output_tokens = sample["net_input"]["prev_output_tokens"]
+            encoder_out = models[0].encoder(sample["net_input"]["src_tokens"], sample["net_input"]["src_lengths"],
+                                            mode="ext_mt")
+            decoder_out = models[0].decoder(prev_output_tokens=prev_output_tokens,
+                                            encoder_out=encoder_out, features_only=True)
+            tokens_src = models[0].decoder.dictionary.string(src_tokens).split()
+            tokens_src_src = models[0].decoder.dictionary.string(src_tokens).replace(" ", "").replace("▁", ' ')
+            tokens_tgt = models[0].decoder.dictionary.string(target).split()
+            # cos_matri = decoder_out[0][0,:-1].cpu()
+            # assert cos_matri.shape[0] == len(tokens_tgt)
+            # draw_heatmap(cos_matri, tokens_tgt, title=tokens_src_str, save_path=str(idxx))
+            cos_matri = encoder_out["encoder_out"][0].squeeze(1).cpu()
+            assert cos_matri.shape[0] == len(tokens_src)
+            draw_heatmap(cos_matri, tokens_src, title="", save_path=str("encoder_%s" % str(idxx)))
 
         prefix_tokens = None
         if cfg.generation.prefix_size > 0:
