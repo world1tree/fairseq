@@ -63,6 +63,7 @@ def _main(cfg: DictConfig, output_file):
         datefmt="%Y-%m-%d %H:%M:%S",
         level=os.environ.get("LOGLEVEL", "INFO").upper(),
         stream=output_file,
+        force=True
     )
     logger = logging.getLogger("fairseq_cli.generate")
 
